@@ -19,7 +19,7 @@
 
 ## 在线演示
 
-直接在浏览器中打开 `demo/radar-coverage-visualizer.html` 即可体验交互式演示。
+直接在浏览器中打开 `demo/radar-coverage-visualizer.html` 或 `radar-coverage-complete.html`即可体验交互式演示。
 
 ## 目录结构
 
