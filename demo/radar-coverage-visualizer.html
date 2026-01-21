@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雷达覆盖区域合并算法可视化</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0a0f1a;
+            --bg-secondary: #111827;
+            --bg-tertiary: #1f2937;
+            --border-color: #374151;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --accent-cyan: #06b6d4;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-purple: #8b5cf6;
+            --accent-red: #ef4444;
+            --terrain-color: #92400e;
+        }
+        
+        body {
+            font-family: 'Noto Sans SC', 'JetBrains Mono', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* 头部 */
+        .header {
+            background: linear-gradient(180deg, var(--bg-secondary) 0%, transparent 100%);
+            padding: 20px 32px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 4px;
+        }
+        
+        .header p {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* 主布局 */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 85px);
+        }
+        
+        /* 左侧面板 */
+        .left-panel {
+            width: 320px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .panel-section {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .panel-section:last-child {
+            border-bottom: none;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-title::before {
+            content: '';
+            width: 3px;
+            height: 12px;
+            background: var(--accent-cyan);
+            border-radius: 2px;
+        }
+        
+        /* 按钮组 */
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            font-family: inherit;
+        }
+        
+        .btn-primary {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+        
+        .btn-primary:hover {
+            background: #0891b2;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+        
+        .btn-secondary:hover {
+            background: #374151;
+        }
+        
+        .btn-danger {
+            background: transparent;
+            color: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+        
+        .btn-danger:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+        
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        /* 开关 */
+        .toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .toggle-item:hover {
+            background: #374151;
+        }
+        
+        .toggle-item label {
+            font-size: 13px;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+        
+        .toggle-switch {
+            width: 44px;
+            height: 24px;
+            background: var(--bg-primary);
+            border-radius: 12px;
+            position: relative;
+            transition: background 0.2s;
+        }
+        
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: all 0.2s;
+        }
+        
+        .toggle-item.active .toggle-switch {
+            background: var(--accent-cyan);
+        }
+        
+        .toggle-item.active .toggle-switch::after {
+            left: 23px;
+            background: white;
+        }
+        
+        /* 滑块 */
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .slider-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .slider-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .slider-value {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: var(--bg-primary);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        
+        /* 雷达列表 */
+        .radar-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .radar-card {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 12px;
+            border-left: 3px solid var(--accent-blue);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .radar-card:hover {
+            background: #374151;
+        }
+        
+        .radar-card.selected {
+            background: rgba(6, 182, 212, 0.1);
+            border-left-color: var(--accent-cyan);
+        }
+        
+        .radar-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .radar-name {
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .radar-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .radar-delete {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+        
+        .radar-delete:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+        
+        .radar-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .radar-stat {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .radar-stat-label {
+            color: var(--text-muted);
+        }
+        
+        /* 中央画布 */
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: 
+                radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.03) 0%, transparent 50%),
+                var(--bg-primary);
+        }
+        
+        #mainCanvas {
+            display: block;
+            cursor: crosshair;
+        }
+        
+        /* 工具栏 */
+        .canvas-toolbar {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            display: flex;
+            gap: 8px;
+            background: var(--bg-secondary);
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .tool-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .tool-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .tool-btn.active {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+        
+        .tool-separator {
+            width: 1px;
+            background: var(--border-color);
+            margin: 4px 0;
+        }
+        
+        /* 信息面板 */
+        .info-panel {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            background: var(--bg-secondary);
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .info-row {
+            display: flex;
+            gap: 20px;
+            color: var(--text-secondary);
+        }
+        
+        .info-row span {
+            color: var(--accent-cyan);
+        }
+        
+        /* 右侧面板 */
+        .right-panel {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            padding: 16px;
+            overflow-y: auto;
+        }
+        
+        /* 属性编辑器 */
+        .property-editor {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .property-group {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 14px;
+        }
+        
+        .property-group-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .property-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        
+        .property-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .property-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .property-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        .property-input:focus {
+            border-color: var(--accent-cyan);
+        }
+        
+        .property-input-row {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .property-input-row .property-input {
+            flex: 1;
+        }
+        
+        /* 图例 */
+        .legend {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 14px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .legend-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .legend-line {
+            width: 24px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        
+        .legend-circle {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .legend-ellipse {
+            width: 20px;
+            height: 14px;
+            border-radius: 50%;
+        }
+        
+        /* 统计卡片 */
+        .stats-card {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 14px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+        
+        /* 算法选择 */
+        .algorithm-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .algorithm-option {
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .algorithm-option:hover {
+            background: #374151;
+        }
+        
+        .algorithm-option.selected {
+            border-color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.1);
+        }
+        
+        .algorithm-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        
+        .algorithm-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        /* 提示框 */
+        .tooltip {
+            position: absolute;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+        
+        .empty-state-text {
+            font-size: 13px;
+        }
+        
+        /* 动画 */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .calculating {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>雷达覆盖区域合并算法可视化</h1>
+        <p>支持地形遮挡 · 多边形布尔运算 · 实时交互</p>
+    </div>
+    
+    <div class="main-container">
+        <!-- 左侧面板 -->
+        <div class="left-panel">
+            <!-- 工具 -->
+            <div class="panel-section">
+                <div class="section-title">操作工具</div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="addRadar()">+ 添加雷达</button>
+                    <button class="btn btn-secondary" onclick="addTerrain()">+ 添加地形</button>
+                    <button class="btn btn-danger" onclick="clearAll()">清空</button>
+                </div>
+            </div>
+            
+            <!-- 显示选项 -->
+            <div class="panel-section">
+                <div class="section-title">显示选项</div>
+                <div class="toggle-group">
+                    <div class="toggle-item active" data-option="showTerrain" onclick="toggleOption(this)">
+                        <label>显示地形</label>
+                        <div class="toggle-switch"></div>
+                    </div>
+                    <div class="toggle-item active" data-option="showIndividual" onclick="toggleOption(this)">
+                        <label>独立覆盖区域</label>
+                        <div class="toggle-switch"></div>
+                    </div>
+                    <div class="toggle-item active" data-option="showMerged" onclick="toggleOption(this)">
+                        <label>合并覆盖区域</label>
+                        <div class="toggle-switch"></div>
+                    </div>
+                    <div class="toggle-item" data-option="showGrid" onclick="toggleOption(this)">
+                        <label>显示网格</label>
+                        <div class="toggle-switch"></div>
+                    </div>
+                    <div class="toggle-item active" data-option="showLabels" onclick="toggleOption(this)">
+                        <label>显示标签</label>
+                        <div class="toggle-switch"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 算法参数 -->
+            <div class="panel-section">
+                <div class="section-title">算法参数</div>
+                <div class="slider-group">
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span class="slider-label">射线数量</span>
+                            <span class="slider-value" id="rayCountValue">72</span>
+                        </div>
+                        <input type="range" min="12" max="180" value="72" id="rayCount" oninput="updateParameter('rayCount', this.value)">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span class="slider-label">边界平滑度</span>
+                            <span class="slider-value" id="smoothLevelValue">2</span>
+                        </div>
+                        <input type="range" min="0" max="5" value="2" id="smoothLevel" oninput="updateParameter('smoothLevel', this.value)">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span class="slider-label">简化容差</span>
+                            <span class="slider-value" id="simplifyEpsilonValue">3</span>
+                        </div>
+                        <input type="range" min="0" max="20" value="3" id="simplifyEpsilon" oninput="updateParameter('simplifyEpsilon', this.value)">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 雷达列表 -->
+            <div class="panel-section">
+                <div class="section-title">雷达列表</div>
+                <div class="radar-list" id="radarList">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- 中央画布 -->
+        <div class="canvas-container">
+            <canvas id="mainCanvas"></canvas>
+            
+            <div class="canvas-toolbar">
+                <button class="tool-btn active" data-tool="select" onclick="setTool('select')" title="选择/移动">⊹</button>
+                <button class="tool-btn" data-tool="radar" onclick="setTool('radar')" title="添加雷达">📡</button>
+                <button class="tool-btn" data-tool="terrain" onclick="setTool('terrain')" title="添加地形">⛰</button>
+                <div class="tool-separator"></div>
+                <button class="tool-btn" onclick="zoomIn()" title="放大">+</button>
+                <button class="tool-btn" onclick="zoomOut()" title="缩小">−</button>
+                <button class="tool-btn" onclick="resetView()" title="重置视图">⌂</button>
+                <div class="tool-separator"></div>
+                <button class="tool-btn" onclick="exportSVG()" title="导出SVG">⤓</button>
+            </div>
+            
+            <div class="info-panel">
+                <div class="info-row">
+                    <div>坐标: <span id="cursorPos">0, 0</span></div>
+                    <div>缩放: <span id="zoomLevel">100%</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧面板 -->
+        <div class="right-panel">
+            <!-- 属性编辑器 -->
+            <div class="property-editor" id="propertyEditor">
+                <div class="section-title">属性编辑</div>
+                
+                <div class="property-group" id="radarProperties" style="display: none;">
+                    <div class="property-group-title">雷达参数</div>
+                    <div class="property-row">
+                        <label class="property-label">名称</label>
+                        <input type="text" class="property-input" id="propRadarName" onchange="updateSelectedRadar()">
+                    </div>
+                    <div class="property-row">
+                        <label class="property-label">位置 (X, Y)</label>
+                        <div class="property-input-row">
+                            <input type="number" class="property-input" id="propRadarX" onchange="updateSelectedRadar()">
+                            <input type="number" class="property-input" id="propRadarY" onchange="updateSelectedRadar()">
+                        </div>
+                    </div>
+                    <div class="property-row">
+                        <label class="property-label">探测半径</label>
+                        <input type="range" id="propRadarRange" min="50" max="400" value="150" oninput="updateSelectedRadar()">
+                        <span class="slider-value" id="propRadarRangeValue">150</span>
+                    </div>
+                    <div class="property-row">
+                        <label class="property-label">天线高度 (m)</label>
+                        <input type="range" id="propRadarHeight" min="10" max="500" value="100" oninput="updateSelectedRadar()">
+                        <span class="slider-value" id="propRadarHeightValue">100</span>
+                    </div>
+                </div>
+                
+                <div class="property-group" id="terrainProperties" style="display: none;">
+                    <div class="property-group-title">地形参数</div>
+                    <div class="property-row">
+                        <label class="property-label">位置 (X, Y)</label>
+                        <div class="property-input-row">
+                            <input type="number" class="property-input" id="propTerrainX" onchange="updateSelectedTerrain()">
+                            <input type="number" class="property-input" id="propTerrainY" onchange="updateSelectedTerrain()">
+                        </div>
+                    </div>
+                    <div class="property-row">
+                        <label class="property-label">半径 X</label>
+                        <input type="range" id="propTerrainRX" min="20" max="200" value="60" oninput="updateSelectedTerrain()">
+                        <span class="slider-value" id="propTerrainRXValue">60</span>
+                    </div>
+                    <div class="property-row">
+                        <label class="property-label">半径 Y</label>
+                        <input type="range" id="propTerrainRY" min="20" max="200" value="60" oninput="updateSelectedTerrain()">
+                        <span class="slider-value" id="propTerrainRYValue">60</span>
+                    </div>
+                    <div class="property-row">
+                        <label class="property-label">高度 (m)</label>
+                        <input type="range" id="propTerrainHeight" min="100" max="2000" value="500" oninput="updateSelectedTerrain()">
+                        <span class="slider-value" id="propTerrainHeightValue">500</span>
+                    </div>
+                </div>
+                
+                <div id="noSelection" class="empty-state">
+                    <div class="empty-state-icon">⊙</div>
+                    <div class="empty-state-text">选择雷达或地形以编辑属性</div>
+                </div>
+            </div>
+            
+            <!-- 统计信息 -->
+            <div class="stats-card" style="margin-top: 16px;">
+                <div class="property-group-title">统计信息</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="statRadarCount">0</div>
+                        <div class="stat-label">雷达数量</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="statTerrainCount">0</div>
+                        <div class="stat-label">地形数量</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="statTotalArea">0</div>
+                        <div class="stat-label">独立面积</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="statMergedArea">0</div>
+                        <div class="stat-label">合并面积</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 图例 -->
+            <div class="legend" style="margin-top: 16px;">
+                <div class="property-group-title">图例</div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background: linear-gradient(90deg, #06b6d4, #8b5cf6);"></div>
+                    <span>合并覆盖边界</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background: #3b82f6; opacity: 0.5;"></div>
+                    <span>独立覆盖边界</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-ellipse" style="background: rgba(146, 64, 14, 0.5);"></div>
+                    <span>地形障碍</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-circle" style="background: #3b82f6;"></div>
+                    <span>雷达站点</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // 全局状态
+        // ============================================================================
+        
+        const state = {
+            radars: [],
+            terrains: [],
+            selectedRadar: null,
+            selectedTerrain: null,
+            currentTool: 'select',
+            isDragging: false,
+            dragTarget: null,
+            dragOffset: { x: 0, y: 0 },
+            pan: { x: 0, y: 0 },
+            zoom: 1,
+            options: {
+                showTerrain: true,
+                showIndividual: true,
+                showMerged: true,
+                showGrid: false,
+                showLabels: true
+            },
+            params: {
+                rayCount: 72,
+                smoothLevel: 2,
+                simplifyEpsilon: 3
+            },
+            radarIdCounter: 0,
+            terrainIdCounter: 0
+        };
+        
+        const radarColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+        
+        // ============================================================================
+        // Canvas 设置
+        // ============================================================================
+        
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            render();
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        // ============================================================================
+        // 地形模型
+        // ============================================================================
+        
+        function getTerrainElevation(x, y) {
+            let maxHeight = 0;
+            for (const terrain of state.terrains) {
+                const dx = (x - terrain.x) / terrain.rx;
+                const dy = (y - terrain.y) / terrain.ry;
+                const distSq = dx * dx + dy * dy;
+                if (distSq < 1) {
+                    const h = terrain.height * Math.exp(-3 * distSq);
+                    maxHeight = Math.max(maxHeight, h);
+                }
+            }
+            return maxHeight;
+        }
+        
+        function isLineOfSightBlocked(radarPos, radarHeight, targetPos, targetHeight = 0) {
+            const steps = 40;
+            const dx = (targetPos.x - radarPos.x) / steps;
+            const dy = (targetPos.y - radarPos.y) / steps;
+            const totalDist = Math.sqrt(
+                (targetPos.x - radarPos.x) ** 2 + (targetPos.y - radarPos.y) ** 2
+            );
+            
+            for (let i = 1; i < steps; i++) {
+                const x = radarPos.x + dx * i;
+                const y = radarPos.y + dy * i;
+                const progress = i / steps;
+                
+                const losHeight = radarHeight * (1 - progress) + targetHeight * progress;
+                const curvatureDrop = (progress * totalDist) ** 2 / 12740000 * 0.3;
+                const effectiveLos = losHeight - curvatureDrop;
+                
+                const terrainHeight = getTerrainElevation(x, y);
+                
+                if (terrainHeight > effectiveLos) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        // ============================================================================
+        // 覆盖多边形生成
+        // ============================================================================
+        
+        function generateCoveragePolygon(radar) {
+            const points = [];
+            const numRays = state.params.rayCount;
+            const angleStep = (2 * Math.PI) / numRays;
+            
+            for (let i = 0; i < numRays; i++) {
+                const angle = i * angleStep;
+                let maxRange = radar.range;
+                
+                const raySteps = 25;
+                for (let r = raySteps; r >= 1; r--) {
+                    const dist = (r / raySteps) * radar.range;
+                    const targetPos = {
+                        x: radar.x + Math.cos(angle) * dist,
+                        y: radar.y + Math.sin(angle) * dist
+                    };
+                    
+                    if (!isLineOfSightBlocked(
+                        { x: radar.x, y: radar.y },
+                        radar.height,
+                        targetPos,
+                        0
+                    )) {
+                        maxRange = dist;
+                        break;
+                    }
+                    maxRange = dist * 0.3;
+                }
+                
+                points.push({
+                    x: radar.x + Math.cos(angle) * maxRange,
+                    y: radar.y + Math.sin(angle) * maxRange
+                });
+            }
+            
+            return points;
+        }
+        
+        // ============================================================================
+        // 多边形布尔运算
+        // ============================================================================
+        
+        function pointInPolygon(point, polygon) {
+            let inside = false;
+            const n = polygon.length;
+            
+            for (let i = 0, j = n - 1; i < n; j = i++) {
+                const pi = polygon[i];
+                const pj = polygon[j];
+                
+                if (((pi.y > point.y) !== (pj.y > point.y)) &&
+                    (point.x < (pj.x - pi.x) * (point.y - pi.y) / (pj.y - pi.y) + pi.x)) {
+                    inside = !inside;
+                }
+            }
+            
+            return inside;
+        }
+        
+        function computePolygonUnion(polygons) {
+            if (polygons.length === 0) return [];
+            if (polygons.length === 1) return polygons[0];
+            
+            // 收集所有边界点
+            const boundaryPoints = [];
+            
+            for (const poly of polygons) {
+                for (const point of poly) {
+                    let isOnBoundary = true;
+                    for (const otherPoly of polygons) {
+                        if (otherPoly === poly) continue;
+                        if (pointInPolygon(point, otherPoly)) {
+                            isOnBoundary = false;
+                            break;
+                        }
+                    }
+                    if (isOnBoundary) {
+                        boundaryPoints.push(point);
+                    }
+                }
+            }
+            
+            if (boundaryPoints.length < 3) return polygons[0];
+            
+            // 计算凹包
+            return computeConcaveHull(boundaryPoints, polygons);
+        }
+        
+        function computeConcaveHull(points, originalPolygons) {
+            // 找最左下点
+            let startIdx = 0;
+            for (let i = 1; i < points.length; i++) {
+                if (points[i].x < points[startIdx].x ||
+                    (points[i].x === points[startIdx].x && points[i].y < points[startIdx].y)) {
+                    startIdx = i;
+                }
+            }
+            
+            const hull = [];
+            let current = startIdx;
+            let prevAngle = -Math.PI;
+            const visited = new Set();
+            const maxIterations = points.length * 2;
+            let iterations = 0;
+            
+            do {
+                hull.push(points[current]);
+                visited.add(current);
+                
+                let nextIdx = -1;
+                let minAngleDiff = Infinity;
+                
+                for (let i = 0; i < points.length; i++) {
+                    if (i === current) continue;
+                    
+                    const dx = points[i].x - points[current].x;
+                    const dy = points[i].y - points[current].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < 1) continue;
+                    
+                    let angle = Math.atan2(dy, dx);
+                    let angleDiff = angle - prevAngle;
+                    
+                    while (angleDiff <= 0) angleDiff += 2 * Math.PI;
+                    while (angleDiff > 2 * Math.PI) angleDiff -= 2 * Math.PI;
+                    
+                    if (angleDiff < minAngleDiff) {
+                        const midPoint = {
+                            x: (points[current].x + points[i].x) / 2,
+                            y: (points[current].y + points[i].y) / 2
+                        };
+                        
+                        let validEdge = false;
+                        for (const poly of originalPolygons) {
+                            if (pointInPolygon(midPoint, poly)) {
+                                validEdge = true;
+                                break;
+                            }
+                        }
+                        
+                        if (validEdge || !visited.has(i)) {
+                            minAngleDiff = angleDiff;
+                            nextIdx = i;
+                        }
+                    }
+                }
+                
+                if (nextIdx === -1 || nextIdx === startIdx) break;
+                
+                prevAngle = Math.atan2(
+                    points[nextIdx].y - points[current].y,
+                    points[nextIdx].x - points[current].x
+                );
+                current = nextIdx;
+                iterations++;
+                
+            } while (iterations < maxIterations && current !== startIdx);
+            
+            return hull.length >= 3 ? hull : points;
+        }
+        
+        // ============================================================================
+        // 多边形后处理
+        // ============================================================================
+        
+        function smoothPolygon(polygon, iterations) {
+            if (iterations === 0) return polygon;
+            
+            let result = [...polygon];
+            
+            for (let iter = 0; iter < iterations; iter++) {
+                const newPoints = [];
+                const n = result.length;
+                
+                for (let i = 0; i < n; i++) {
+                    const p0 = result[i];
+                    const p1 = result[(i + 1) % n];
+                    
+                    newPoints.push({
+                        x: 0.75 * p0.x + 0.25 * p1.x,
+                        y: 0.75 * p0.y + 0.25 * p1.y
+                    });
+                    newPoints.push({
+                        x: 0.25 * p0.x + 0.75 * p1.x,
+                        y: 0.25 * p0.y + 0.75 * p1.y
+                    });
+                }
+                
+                result = newPoints;
+            }
+            
+            return result;
+        }
+        
+        function simplifyPolygon(polygon, epsilon) {
+            if (epsilon === 0 || polygon.length < 3) return polygon;
+            
+            function perpendicularDistance(point, lineStart, lineEnd) {
+                const dx = lineEnd.x - lineStart.x;
+                const dy = lineEnd.y - lineStart.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                
+                if (len === 0) return Math.sqrt((point.x - lineStart.x) ** 2 + (point.y - lineStart.y) ** 2);
+                
+                return Math.abs(dy * point.x - dx * point.y + lineEnd.x * lineStart.y - lineEnd.y * lineStart.x) / len;
+            }
+            
+            function douglasPeucker(points, start, end, epsilon, keep) {
+                if (end <= start + 1) return;
+                
+                let maxDist = 0;
+                let maxIdx = start;
+                
+                for (let i = start + 1; i < end; i++) {
+                    const dist = perpendicularDistance(points[i], points[start], points[end]);
+                    if (dist > maxDist) {
+                        maxDist = dist;
+                        maxIdx = i;
+                    }
+                }
+                
+                if (maxDist > epsilon) {
+                    keep[maxIdx] = true;
+                    douglasPeucker(points, start, maxIdx, epsilon, keep);
+                    douglasPeucker(points, maxIdx, end, epsilon, keep);
+                }
+            }
+            
+            const keep = new Array(polygon.length).fill(false);
+            keep[0] = true;
+            keep[polygon.length - 1] = true;
+            
+            douglasPeucker(polygon, 0, polygon.length - 1, epsilon, keep);
+            
+            return polygon.filter((_, i) => keep[i]);
+        }
+        
+        function computePolygonArea(polygon) {
+            if (polygon.length < 3) return 0;
+            
+            let area = 0;
+            const n = polygon.length;
+            
+            for (let i = 0; i < n; i++) {
+                const j = (i + 1) % n;
+                area += polygon[i].x * polygon[j].y;
+                area -= polygon[j].x * polygon[i].y;
+            }
+            
+            return Math.abs(area) / 2;
+        }
+        
+        // ============================================================================
+        // 渲染
+        // ============================================================================
+        
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            ctx.translate(state.pan.x, state.pan.y);
+            ctx.scale(state.zoom, state.zoom);
+            
+            // 绘制网格
+            if (state.options.showGrid) {
+                drawGrid();
+            }
+            
+            // 计算覆盖
+            const coverages = state.radars.map(radar => ({
+                radar,
+                polygon: generateCoveragePolygon(radar)
+            }));
+            
+            // 计算合并
+            let mergedCoverage = [];
+            if (coverages.length > 0) {
+                mergedCoverage = computePolygonUnion(coverages.map(c => c.polygon));
+                mergedCoverage = smoothPolygon(mergedCoverage, state.params.smoothLevel);
+                if (state.params.simplifyEpsilon > 0) {
+                    mergedCoverage = simplifyPolygon(mergedCoverage, state.params.simplifyEpsilon);
+                }
+            }
+            
+            // 绘制地形
+            if (state.options.showTerrain) {
+                drawTerrains();
+            }
+            
+            // 绘制合并覆盖
+            if (state.options.showMerged && mergedCoverage.length > 0) {
+                drawMergedCoverage(mergedCoverage);
+            }
+            
+            // 绘制独立覆盖
+            if (state.options.showIndividual) {
+                coverages.forEach(({ radar, polygon }) => {
+                    drawCoverage(polygon, radar.color);
+                });
+            }
+            
+            // 绘制雷达
+            state.radars.forEach(radar => {
+                drawRadar(radar);
+            });
+            
+            ctx.restore();
+            
+            // 更新统计
+            updateStats(coverages, mergedCoverage);
+        }
+        
+        function drawGrid() {
+            const gridSize = 50;
+            ctx.strokeStyle = '#1f2937';
+            ctx.lineWidth = 1;
+            
+            const startX = Math.floor(-state.pan.x / state.zoom / gridSize) * gridSize;
+            const startY = Math.floor(-state.pan.y / state.zoom / gridSize) * gridSize;
+            const endX = startX + canvas.width / state.zoom + gridSize * 2;
+            const endY = startY + canvas.height / state.zoom + gridSize * 2;
+            
+            ctx.beginPath();
+            for (let x = startX; x < endX; x += gridSize) {
+                ctx.moveTo(x, startY);
+                ctx.lineTo(x, endY);
+            }
+            for (let y = startY; y < endY; y += gridSize) {
+                ctx.moveTo(startX, y);
+                ctx.lineTo(endX, y);
+            }
+            ctx.stroke();
+        }
+        
+        function drawTerrains() {
+            state.terrains.forEach((terrain, index) => {
+                const isSelected = state.selectedTerrain === index;
+                
+                // 绘制地形
+                const gradient = ctx.createRadialGradient(
+                    terrain.x, terrain.y, 0,
+                    terrain.x, terrain.y, Math.max(terrain.rx, terrain.ry)
+                );
+                gradient.addColorStop(0, 'rgba(146, 64, 14, 0.6)');
+                gradient.addColorStop(1, 'rgba(146, 64, 14, 0)');
+                
+                ctx.beginPath();
+                ctx.ellipse(terrain.x, terrain.y, terrain.rx, terrain.ry, 0, 0, 2 * Math.PI);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // 等高线
+                const levels = [0.3, 0.6, 0.9];
+                levels.forEach(level => {
+                    ctx.beginPath();
+                    ctx.ellipse(
+                        terrain.x, terrain.y,
+                        terrain.rx * (1 - level * 0.5),
+                        terrain.ry * (1 - level * 0.5),
+                        0, 0, 2 * Math.PI
+                    );
+                    ctx.strokeStyle = `rgba(161, 98, 7, ${0.3 + level * 0.2})`;
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([4, 4]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                });
+                
+                // 选中边框
+                if (isSelected) {
+                    ctx.beginPath();
+                    ctx.ellipse(terrain.x, terrain.y, terrain.rx + 5, terrain.ry + 5, 0, 0, 2 * Math.PI);
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                
+                // 标签
+                if (state.options.showLabels) {
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.font = '11px "Noto Sans SC"';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${terrain.height}m`, terrain.x, terrain.y + 4);
+                }
+            });
+        }
+        
+        function drawCoverage(polygon, color) {
+            if (polygon.length < 3) return;
+            
+            ctx.beginPath();
+            ctx.moveTo(polygon[0].x, polygon[0].y);
+            for (let i = 1; i < polygon.length; i++) {
+                ctx.lineTo(polygon[i].x, polygon[i].y);
+            }
+            ctx.closePath();
+            
+            ctx.fillStyle = color + '20';
+            ctx.fill();
+            
+            ctx.strokeStyle = color + '80';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        
+        function drawMergedCoverage(polygon) {
+            if (polygon.length < 3) return;
+            
+            ctx.beginPath();
+            ctx.moveTo(polygon[0].x, polygon[0].y);
+            for (let i = 1; i < polygon.length; i++) {
+                ctx.lineTo(polygon[i].x, polygon[i].y);
+            }
+            ctx.closePath();
+            
+            // 渐变填充
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
+            gradient.addColorStop(1, 'rgba(139, 92, 246, 0.25)');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            // 发光边框
+            ctx.shadowColor = '#06b6d4';
+            ctx.shadowBlur = 10;
+            ctx.strokeStyle = '#06b6d4';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawRadar(radar) {
+            const isSelected = state.selectedRadar === radar.id;
+            
+            // 范围指示环
+            ctx.beginPath();
+            ctx.arc(radar.x, radar.y, radar.range, 0, 2 * Math.PI);
+            ctx.strokeStyle = radar.color + '40';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 雷达图标
+            ctx.beginPath();
+            ctx.arc(radar.x, radar.y, 16, 0, 2 * Math.PI);
+            ctx.fillStyle = '#0a0f1a';
+            ctx.fill();
+            ctx.strokeStyle = isSelected ? '#06b6d4' : radar.color;
+            ctx.lineWidth = isSelected ? 3 : 2;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(radar.x, radar.y, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = radar.color;
+            ctx.fill();
+            
+            // 选中动画
+            if (isSelected) {
+                ctx.beginPath();
+                ctx.arc(radar.x, radar.y, 24, 0, 2 * Math.PI);
+                ctx.strokeStyle = '#06b6d4';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            
+            // 标签
+            if (state.options.showLabels) {
+                ctx.fillStyle = '#0a0f1a';
+                ctx.fillRect(radar.x - 30, radar.y - 38, 60, 18);
+                ctx.fillStyle = radar.color;
+                ctx.font = '12px "Noto Sans SC"';
+                ctx.textAlign = 'center';
+                ctx.fillText(radar.name, radar.x, radar.y - 24);
+            }
+        }
+        
+        // ============================================================================
+        // 交互
+        // ============================================================================
+        
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left - state.pan.x) / state.zoom;
+            const y = (e.clientY - rect.top - state.pan.y) / state.zoom;
+            
+            if (state.currentTool === 'select') {
+                // 检查是否点击雷达
+                for (const radar of state.radars) {
+                    const dist = Math.sqrt((x - radar.x) ** 2 + (y - radar.y) ** 2);
+                    if (dist < 20) {
+                        selectRadar(radar.id);
+                        state.isDragging = true;
+                        state.dragTarget = { type: 'radar', id: radar.id };
+                        state.dragOffset = { x: x - radar.x, y: y - radar.y };
+                        return;
+                    }
+                }
+                
+                // 检查是否点击地形
+                for (let i = 0; i < state.terrains.length; i++) {
+                    const terrain = state.terrains[i];
+                    const dx = (x - terrain.x) / terrain.rx;
+                    const dy = (y - terrain.y) / terrain.ry;
+                    if (dx * dx + dy * dy < 1) {
+                        selectTerrain(i);
+                        state.isDragging = true;
+                        state.dragTarget = { type: 'terrain', index: i };
+                        state.dragOffset = { x: x - terrain.x, y: y - terrain.y };
+                        return;
+                    }
+                }
+                
+                // 点击空白处取消选择
+                deselectAll();
+                
+            } else if (state.currentTool === 'radar') {
+                addRadarAt(x, y);
+                setTool('select');
+                
+            } else if (state.currentTool === 'terrain') {
+                addTerrainAt(x, y);
+                setTool('select');
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left - state.pan.x) / state.zoom;
+            const y = (e.clientY - rect.top - state.pan.y) / state.zoom;
+            
+            // 更新坐标显示
+            document.getElementById('cursorPos').textContent = `${Math.round(x)}, ${Math.round(y)}`;
+            
+            if (state.isDragging && state.dragTarget) {
+                if (state.dragTarget.type === 'radar') {
+                    const radar = state.radars.find(r => r.id === state.dragTarget.id);
+                    if (radar) {
+                        radar.x = x - state.dragOffset.x;
+                        radar.y = y - state.dragOffset.y;
+                        updatePropertyPanel();
+                        render();
+                    }
+                } else if (state.dragTarget.type === 'terrain') {
+                    const terrain = state.terrains[state.dragTarget.index];
+                    if (terrain) {
+                        terrain.x = x - state.dragOffset.x;
+                        terrain.y = y - state.dragOffset.y;
+                        updatePropertyPanel();
+                        render();
+                    }
+                }
+            }
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            state.isDragging = false;
+            state.dragTarget = null;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            state.isDragging = false;
+            state.dragTarget = null;
+        });
+        
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            state.zoom = Math.max(0.2, Math.min(3, state.zoom * delta));
+            document.getElementById('zoomLevel').textContent = Math.round(state.zoom * 100) + '%';
+            render();
+        });
+        
+        // ============================================================================
+        // 工具函数
+        // ============================================================================
+        
+        function setTool(tool) {
+            state.currentTool = tool;
+            document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tool === tool);
+            });
+            
+            if (tool === 'radar') {
+                canvas.style.cursor = 'crosshair';
+            } else if (tool === 'terrain') {
+                canvas.style.cursor = 'crosshair';
+            } else {
+                canvas.style.cursor = 'default';
+            }
+        }
+        
+        function addRadar() {
+            const x = canvas.width / 2 / state.zoom - state.pan.x / state.zoom + (Math.random() - 0.5) * 200;
+            const y = canvas.height / 2 / state.zoom - state.pan.y / state.zoom + (Math.random() - 0.5) * 200;
+            addRadarAt(x, y);
+        }
+        
+        function addRadarAt(x, y) {
+            const id = ++state.radarIdCounter;
+            const colorIndex = (state.radars.length) % radarColors.length;
+            
+            state.radars.push({
+                id,
+                name: `雷达 ${String.fromCharCode(65 + state.radars.length)}`,
+                x,
+                y,
+                range: 150,
+                height: 100,
+                color: radarColors[colorIndex]
+            });
+            
+            selectRadar(id);
+            updateRadarList();
+            render();
+        }
+        
+        function addTerrain() {
+            const x = canvas.width / 2 / state.zoom - state.pan.x / state.zoom + (Math.random() - 0.5) * 200;
+            const y = canvas.height / 2 / state.zoom - state.pan.y / state.zoom + (Math.random() - 0.5) * 200;
+            addTerrainAt(x, y);
+        }
+        
+        function addTerrainAt(x, y) {
+            state.terrains.push({
+                x,
+                y,
+                rx: 60,
+                ry: 60,
+                height: 500
+            });
+            
+            selectTerrain(state.terrains.length - 1);
+            render();
+        }
+        
+        function deleteRadar(id) {
+            state.radars = state.radars.filter(r => r.id !== id);
+            if (state.selectedRadar === id) {
+                deselectAll();
+            }
+            updateRadarList();
+            render();
+        }
+        
+        function deleteTerrain(index) {
+            state.terrains.splice(index, 1);
+            if (state.selectedTerrain === index) {
+                deselectAll();
+            }
+            render();
+        }
+        
+        function selectRadar(id) {
+            state.selectedRadar = id;
+            state.selectedTerrain = null;
+            updateRadarList();
+            updatePropertyPanel();
+        }
+        
+        function selectTerrain(index) {
+            state.selectedTerrain = index;
+            state.selectedRadar = null;
+            updateRadarList();
+            updatePropertyPanel();
+        }
+        
+        function deselectAll() {
+            state.selectedRadar = null;
+            state.selectedTerrain = null;
+            updateRadarList();
+            updatePropertyPanel();
+        }
+        
+        function clearAll() {
+            if (confirm('确定要清空所有雷达和地形吗？')) {
+                state.radars = [];
+                state.terrains = [];
+                state.selectedRadar = null;
+                state.selectedTerrain = null;
+                updateRadarList();
+                updatePropertyPanel();
+                render();
+            }
+        }
+        
+        function toggleOption(element) {
+            element.classList.toggle('active');
+            const option = element.dataset.option;
+            state.options[option] = element.classList.contains('active');
+            render();
+        }
+        
+        function updateParameter(param, value) {
+            state.params[param] = parseInt(value);
+            document.getElementById(param + 'Value').textContent = value;
+            render();
+        }
+        
+        function zoomIn() {
+            state.zoom = Math.min(3, state.zoom * 1.2);
+            document.getElementById('zoomLevel').textContent = Math.round(state.zoom * 100) + '%';
+            render();
+        }
+        
+        function zoomOut() {
+            state.zoom = Math.max(0.2, state.zoom / 1.2);
+            document.getElementById('zoomLevel').textContent = Math.round(state.zoom * 100) + '%';
+            render();
+        }
+        
+        function resetView() {
+            state.zoom = 1;
+            state.pan = { x: 0, y: 0 };
+            document.getElementById('zoomLevel').textContent = '100%';
+            render();
+        }
+        
+        // ============================================================================
+        // UI 更新
+        // ============================================================================
+        
+        function updateRadarList() {
+            const container = document.getElementById('radarList');
+            
+            if (state.radars.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📡</div>
+                        <div class="empty-state-text">暂无雷达<br>点击"添加雷达"开始</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = state.radars.map(radar => `
+                <div class="radar-card ${state.selectedRadar === radar.id ? 'selected' : ''}" 
+                     onclick="selectRadar(${radar.id})" 
+                     style="border-left-color: ${radar.color}">
+                    <div class="radar-card-header">
+                        <div class="radar-name">
+                            <div class="radar-color" style="background: ${radar.color}"></div>
+                            ${radar.name}
+                        </div>
+                        <button class="radar-delete" onclick="event.stopPropagation(); deleteRadar(${radar.id})">×</button>
+                    </div>
+                    <div class="radar-stats">
+                        <div class="radar-stat">
+                            <span class="radar-stat-label">位置:</span>
+                            ${Math.round(radar.x)}, ${Math.round(radar.y)}
+                        </div>
+                        <div class="radar-stat">
+                            <span class="radar-stat-label">范围:</span>
+                            ${radar.range}
+                        </div>
+                        <div class="radar-stat">
+                            <span class="radar-stat-label">高度:</span>
+                            ${radar.height}m
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updatePropertyPanel() {
+            const radarPanel = document.getElementById('radarProperties');
+            const terrainPanel = document.getElementById('terrainProperties');
+            const noSelection = document.getElementById('noSelection');
+            
+            if (state.selectedRadar !== null) {
+                const radar = state.radars.find(r => r.id === state.selectedRadar);
+                if (radar) {
+                    radarPanel.style.display = 'block';
+                    terrainPanel.style.display = 'none';
+                    noSelection.style.display = 'none';
+                    
+                    document.getElementById('propRadarName').value = radar.name;
+                    document.getElementById('propRadarX').value = Math.round(radar.x);
+                    document.getElementById('propRadarY').value = Math.round(radar.y);
+                    document.getElementById('propRadarRange').value = radar.range;
+                    document.getElementById('propRadarRangeValue').textContent = radar.range;
+                    document.getElementById('propRadarHeight').value = radar.height;
+                    document.getElementById('propRadarHeightValue').textContent = radar.height;
+                }
+            } else if (state.selectedTerrain !== null) {
+                const terrain = state.terrains[state.selectedTerrain];
+                if (terrain) {
+                    radarPanel.style.display = 'none';
+                    terrainPanel.style.display = 'block';
+                    noSelection.style.display = 'none';
+                    
+                    document.getElementById('propTerrainX').value = Math.round(terrain.x);
+                    document.getElementById('propTerrainY').value = Math.round(terrain.y);
+                    document.getElementById('propTerrainRX').value = terrain.rx;
+                    document.getElementById('propTerrainRXValue').textContent = terrain.rx;
+                    document.getElementById('propTerrainRY').value = terrain.ry;
+                    document.getElementById('propTerrainRYValue').textContent = terrain.ry;
+                    document.getElementById('propTerrainHeight').value = terrain.height;
+                    document.getElementById('propTerrainHeightValue').textContent = terrain.height;
+                }
+            } else {
+                radarPanel.style.display = 'none';
+                terrainPanel.style.display = 'none';
+                noSelection.style.display = 'block';
+            }
+        }
+        
+        function updateSelectedRadar() {
+            if (state.selectedRadar === null) return;
+            
+            const radar = state.radars.find(r => r.id === state.selectedRadar);
+            if (radar) {
+                radar.name = document.getElementById('propRadarName').value;
+                radar.x = parseFloat(document.getElementById('propRadarX').value) || radar.x;
+                radar.y = parseFloat(document.getElementById('propRadarY').value) || radar.y;
+                radar.range = parseInt(document.getElementById('propRadarRange').value);
+                radar.height = parseInt(document.getElementById('propRadarHeight').value);
+                
+                document.getElementById('propRadarRangeValue').textContent = radar.range;
+                document.getElementById('propRadarHeightValue').textContent = radar.height;
+                
+                updateRadarList();
+                render();
+            }
+        }
+        
+        function updateSelectedTerrain() {
+            if (state.selectedTerrain === null) return;
+            
+            const terrain = state.terrains[state.selectedTerrain];
+            if (terrain) {
+                terrain.x = parseFloat(document.getElementById('propTerrainX').value) || terrain.x;
+                terrain.y = parseFloat(document.getElementById('propTerrainY').value) || terrain.y;
+                terrain.rx = parseInt(document.getElementById('propTerrainRX').value);
+                terrain.ry = parseInt(document.getElementById('propTerrainRY').value);
+                terrain.height = parseInt(document.getElementById('propTerrainHeight').value);
+                
+                document.getElementById('propTerrainRXValue').textContent = terrain.rx;
+                document.getElementById('propTerrainRYValue').textContent = terrain.ry;
+                document.getElementById('propTerrainHeightValue').textContent = terrain.height;
+                
+                render();
+            }
+        }
+        
+        function updateStats(coverages, mergedCoverage) {
+            document.getElementById('statRadarCount').textContent = state.radars.length;
+            document.getElementById('statTerrainCount').textContent = state.terrains.length;
+            
+            const totalArea = coverages.reduce((sum, c) => sum + computePolygonArea(c.polygon), 0);
+            const mergedArea = computePolygonArea(mergedCoverage);
+            
+            document.getElementById('statTotalArea').textContent = formatArea(totalArea);
+            document.getElementById('statMergedArea').textContent = formatArea(mergedArea);
+        }
+        
+        function formatArea(area) {
+            if (area > 1000000) {
+                return (area / 1000000).toFixed(1) + 'M';
+            } else if (area > 1000) {
+                return (area / 1000).toFixed(1) + 'K';
+            }
+            return Math.round(area).toString();
+        }
+        
+        // ============================================================================
+        // 导出
+        // ============================================================================
+        
+        function exportSVG() {
+            const coverages = state.radars.map(radar => ({
+                radar,
+                polygon: generateCoveragePolygon(radar)
+            }));
+            
+            let merged = [];
+            if (coverages.length > 0) {
+                merged = computePolygonUnion(coverages.map(c => c.polygon));
+                merged = smoothPolygon(merged, state.params.smoothLevel);
+            }
+            
+            let svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}">
+  <rect width="100%" height="100%" fill="#0a0f1a"/>
+`;
+            
+            // 地形
+            state.terrains.forEach(terrain => {
+                svg += `  <ellipse cx="${terrain.x}" cy="${terrain.y}" rx="${terrain.rx}" ry="${terrain.ry}" fill="rgba(146, 64, 14, 0.5)"/>\n`;
+            });
+            
+            // 合并覆盖
+            if (merged.length > 0) {
+                const pathData = merged.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + ' Z';
+                svg += `  <path d="${pathData}" fill="rgba(6, 182, 212, 0.3)" stroke="#06b6d4" stroke-width="2.5"/>\n`;
+            }
+            
+            // 独立覆盖
+            coverages.forEach(({ radar, polygon }) => {
+                const pathData = polygon.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + ' Z';
+                svg += `  <path d="${pathData}" fill="${radar.color}20" stroke="${radar.color}80" stroke-width="1.5" stroke-dasharray="6,3"/>\n`;
+            });
+            
+            // 雷达
+            state.radars.forEach(radar => {
+                svg += `  <circle cx="${radar.x}" cy="${radar.y}" r="16" fill="#0a0f1a" stroke="${radar.color}" stroke-width="2"/>\n`;
+                svg += `  <circle cx="${radar.x}" cy="${radar.y}" r="6" fill="${radar.color}"/>\n`;
+                svg += `  <text x="${radar.x}" y="${radar.y - 24}" fill="${radar.color}" font-size="12" text-anchor="middle">${radar.name}</text>\n`;
+            });
+            
+            svg += '</svg>';
+            
+            // 下载
+            const blob = new Blob([svg], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'radar_coverage.svg';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // ============================================================================
+        // 初始化
+        // ============================================================================
+        
+        function init() {
+            // 添加示例数据
+            state.terrains = [
+                { x: 450, y: 300, rx: 80, ry: 60, height: 600 },
+                { x: 250, y: 450, rx: 50, ry: 70, height: 400 },
+            ];
+            
+            addRadarAt(200, 250);
+            addRadarAt(500, 180);
+            addRadarAt(600, 420);
+            
+            deselectAll();
+            render();
+        }
+        
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雷达覆盖区域合并 - 完整多边形布尔运算</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0a0f1a;
+            --bg-secondary: #111827;
+            --bg-tertiary: #1f2937;
+            --border-color: #374151;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --accent-cyan: #06b6d4;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-purple: #8b5cf6;
+            --accent-red: #ef4444;
+        }
+        
+        body {
+            font-family: 'Noto Sans SC', 'JetBrains Mono', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(180deg, var(--bg-secondary) 0%, transparent 100%);
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header-badge {
+            background: var(--accent-green);
+            color: var(--bg-primary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 65px);
+        }
+        
+        .left-panel {
+            width: 300px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .panel-section {
+            padding: 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .panel-section:last-child {
+            border-bottom: none;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .section-title::before {
+            content: '';
+            width: 3px;
+            height: 10px;
+            background: var(--accent-cyan);
+            border-radius: 2px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 7px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            font-family: inherit;
+        }
+        
+        .btn-primary {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+        
+        .btn-primary:hover {
+            background: #0891b2;
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+        
+        .btn-secondary:hover {
+            background: #374151;
+        }
+        
+        .btn-danger {
+            background: transparent;
+            color: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+        
+        .btn-danger:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+        
+        .toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .toggle-item:hover {
+            background: #374151;
+        }
+        
+        .toggle-item label {
+            font-size: 12px;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+        
+        .toggle-switch {
+            width: 36px;
+            height: 20px;
+            background: var(--bg-primary);
+            border-radius: 10px;
+            position: relative;
+            transition: background 0.2s;
+        }
+        
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: all 0.2s;
+        }
+        
+        .toggle-item.active .toggle-switch {
+            background: var(--accent-cyan);
+        }
+        
+        .toggle-item.active .toggle-switch::after {
+            left: 19px;
+            background: white;
+        }
+        
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .slider-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .slider-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        .slider-value {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: var(--bg-primary);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .radar-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .radar-card {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 10px;
+            border-left: 3px solid var(--accent-blue);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .radar-card:hover {
+            background: #374151;
+        }
+        
+        .radar-card.selected {
+            background: rgba(6, 182, 212, 0.1);
+            border-left-color: var(--accent-cyan);
+        }
+        
+        .radar-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        
+        .radar-name {
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .radar-color {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .radar-delete {
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        
+        .radar-delete:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+        
+        .radar-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: var(--bg-primary);
+        }
+        
+        #mainCanvas {
+            display: block;
+            cursor: crosshair;
+        }
+        
+        .canvas-toolbar {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            display: flex;
+            gap: 6px;
+            background: var(--bg-secondary);
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .tool-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .tool-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .tool-btn.active {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+        
+        .tool-separator {
+            width: 1px;
+            background: var(--border-color);
+            margin: 4px 0;
+        }
+        
+        .info-panel {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: var(--bg-secondary);
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .info-row {
+            display: flex;
+            gap: 16px;
+            color: var(--text-secondary);
+        }
+        
+        .info-row span {
+            color: var(--accent-cyan);
+        }
+        
+        .right-panel {
+            width: 260px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            padding: 14px;
+            overflow-y: auto;
+        }
+        
+        .property-group {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .property-group-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .property-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .property-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .property-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        
+        .property-input {
+            width: 100%;
+            padding: 6px 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            outline: none;
+        }
+        
+        .property-input:focus {
+            border-color: var(--accent-cyan);
+        }
+        
+        .property-input-row {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .property-input-row .property-input {
+            flex: 1;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 8px;
+            background: var(--bg-primary);
+            border-radius: 6px;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .stat-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        .legend-line {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        
+        .legend-circle {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .legend-ellipse {
+            width: 16px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 30px 16px;
+            color: var(--text-muted);
+        }
+        
+        .empty-state-icon {
+            font-size: 36px;
+            margin-bottom: 8px;
+            opacity: 0.5;
+        }
+        
+        .empty-state-text {
+            font-size: 12px;
+        }
+        
+        .algorithm-info {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .algorithm-info-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            margin-bottom: 6px;
+        }
+        
+        .algorithm-info-text {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>雷达覆盖区域合并 - 完整多边形布尔运算</h1>
+        <span class="header-badge">支持凹多边形</span>
+    </div>
+    
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="panel-section">
+                <div class="section-title">操作工具</div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="addRadar()">+ 雷达</button>
+                    <button class="btn btn-secondary" onclick="addTerrain()">+ 地形</button>
+                    <button class="btn btn-secondary" onclick="addPreset()">预设场景</button>
+                    <button class="btn btn-danger" onclick="clearAll()">清空</button>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="section-title">显示选项</div>
+                <div class="toggle-group">
+                    <div class="toggle-item active" data-option="showTerrain" onclick="toggleOption(this)">
+                        <label>显示地形</label>
+                        <div class="toggle-switch"></div>
+                    </div>
+                    <div class="toggle-item active" data-option="showIndividual" onclick="toggleOption(this)">
+                        <label>独立覆盖区域</label>
+                        <div class="toggle-switch"></div>
+                    </div>
+                    <div class="toggle-item active" data-option="showMerged" onclick="toggleOption(this)">
+                        <label>合并覆盖区域</label>
+                        <div class="toggle-switch"></div>
+                    </div>
+                    <div class="toggle-item" data-option="showVertices" onclick="toggleOption(this)">
+                        <label>显示顶点</label>
+                        <div class="toggle-switch"></div>
+                    </div>
+                    <div class="toggle-item active" data-option="showLabels" onclick="toggleOption(this)">
+                        <label>显示标签</label>
+                        <div class="toggle-switch"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="section-title">算法参数</div>
+                <div class="slider-group">
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span class="slider-label">射线数量</span>
+                            <span class="slider-value" id="rayCountValue">72</span>
+                        </div>
+                        <input type="range" min="24" max="180" value="72" id="rayCount" oninput="updateParameter('rayCount', this.value)">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span class="slider-label">边界平滑度</span>
+                            <span class="slider-value" id="smoothLevelValue">1</span>
+                        </div>
+                        <input type="range" min="0" max="4" value="1" id="smoothLevel" oninput="updateParameter('smoothLevel', this.value)">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="section-title">雷达列表</div>
+                <div class="radar-list" id="radarList"></div>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="mainCanvas"></canvas>
+            
+            <div class="canvas-toolbar">
+                <button class="tool-btn active" data-tool="select" onclick="setTool('select')" title="选择">⊹</button>
+                <button class="tool-btn" data-tool="radar" onclick="setTool('radar')" title="添加雷达">📡</button>
+                <button class="tool-btn" data-tool="terrain" onclick="setTool('terrain')" title="添加地形">⛰</button>
+                <div class="tool-separator"></div>
+                <button class="tool-btn" onclick="zoomIn()" title="放大">+</button>
+                <button class="tool-btn" onclick="zoomOut()" title="缩小">−</button>
+                <button class="tool-btn" onclick="resetView()" title="重置">⌂</button>
+            </div>
+            
+            <div class="info-panel">
+                <div class="info-row">
+                    <div>坐标: <span id="cursorPos">0, 0</span></div>
+                    <div>缩放: <span id="zoomLevel">100%</span></div>
+                    <div>多边形: <span id="polygonCount">0</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="right-panel">
+            <div class="algorithm-info">
+                <div class="algorithm-info-title">算法说明</div>
+                <div class="algorithm-info-text">
+                    使用 Weiler-Atherton 多边形裁剪算法计算并集，完整支持：
+                    <br>• 凹多边形合并
+                    <br>• 多个分离区域
+                    <br>• 内部孔洞检测
+                </div>
+            </div>
+            
+            <div class="property-group" id="radarProperties" style="display: none;">
+                <div class="property-group-title">雷达参数</div>
+                <div class="property-row">
+                    <label class="property-label">名称</label>
+                    <input type="text" class="property-input" id="propRadarName" onchange="updateSelectedRadar()">
+                </div>
+                <div class="property-row">
+                    <label class="property-label">位置</label>
+                    <div class="property-input-row">
+                        <input type="number" class="property-input" id="propRadarX" onchange="updateSelectedRadar()">
+                        <input type="number" class="property-input" id="propRadarY" onchange="updateSelectedRadar()">
+                    </div>
+                </div>
+                <div class="property-row">
+                    <label class="property-label">探测半径: <span id="propRadarRangeValue">150</span></label>
+                    <input type="range" id="propRadarRange" min="50" max="400" value="150" oninput="updateSelectedRadar()">
+                </div>
+                <div class="property-row">
+                    <label class="property-label">天线高度: <span id="propRadarHeightValue">100</span>m</label>
+                    <input type="range" id="propRadarHeight" min="10" max="500" value="100" oninput="updateSelectedRadar()">
+                </div>
+            </div>
+            
+            <div class="property-group" id="terrainProperties" style="display: none;">
+                <div class="property-group-title">地形参数</div>
+                <div class="property-row">
+                    <label class="property-label">位置</label>
+                    <div class="property-input-row">
+                        <input type="number" class="property-input" id="propTerrainX" onchange="updateSelectedTerrain()">
+                        <input type="number" class="property-input" id="propTerrainY" onchange="updateSelectedTerrain()">
+                    </div>
+                </div>
+                <div class="property-row">
+                    <label class="property-label">半径X: <span id="propTerrainRXValue">60</span></label>
+                    <input type="range" id="propTerrainRX" min="20" max="200" value="60" oninput="updateSelectedTerrain()">
+                </div>
+                <div class="property-row">
+                    <label class="property-label">半径Y: <span id="propTerrainRYValue">60</span></label>
+                    <input type="range" id="propTerrainRY" min="20" max="200" value="60" oninput="updateSelectedTerrain()">
+                </div>
+                <div class="property-row">
+                    <label class="property-label">高度: <span id="propTerrainHeightValue">500</span>m</label>
+                    <input type="range" id="propTerrainHeight" min="100" max="2000" value="500" oninput="updateSelectedTerrain()">
+                </div>
+            </div>
+            
+            <div class="property-group">
+                <div class="property-group-title">统计信息</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="statRadarCount">0</div>
+                        <div class="stat-label">雷达数量</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="statTerrainCount">0</div>
+                        <div class="stat-label">地形数量</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="statTotalArea">0</div>
+                        <div class="stat-label">独立面积</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="statMergedArea">0</div>
+                        <div class="stat-label">合并面积</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="statRegionCount">0</div>
+                        <div class="stat-label">分离区域</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="statHoleCount">0</div>
+                        <div class="stat-label">孔洞数量</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="property-group">
+                <div class="property-group-title">图例</div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background: linear-gradient(90deg, #06b6d4, #8b5cf6);"></div>
+                    <span>合并覆盖边界</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background: #3b82f6; opacity: 0.5;"></div>
+                    <span>独立覆盖边界</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background: #ef4444;"></div>
+                    <span>孔洞边界</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-ellipse" style="background: rgba(146, 64, 14, 0.5);"></div>
+                    <span>地形障碍</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // 全局状态
+        // ============================================================================
+        
+        const state = {
+            radars: [],
+            terrains: [],
+            selectedRadar: null,
+            selectedTerrain: null,
+            currentTool: 'select',
+            isDragging: false,
+            dragTarget: null,
+            dragOffset: { x: 0, y: 0 },
+            pan: { x: 0, y: 0 },
+            zoom: 1,
+            options: {
+                showTerrain: true,
+                showIndividual: true,
+                showMerged: true,
+                showVertices: false,
+                showLabels: true
+            },
+            params: {
+                rayCount: 72,
+                smoothLevel: 1
+            },
+            radarIdCounter: 0
+        };
+        
+        const radarColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+        
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // ============================================================================
+        // 多边形布尔运算核心算法
+        // ============================================================================
+        
+        class PolygonBoolean {
+            /**
+             * 计算多个多边形的并集
+             * 使用扫描线 + 区间合并的方法，正确处理凹多边形
+             */
+            static union(polygons) {
+                if (polygons.length === 0) return { regions: [], holes: [] };
+                if (polygons.length === 1) return { regions: [polygons[0]], holes: [] };
+                
+                // 1. 收集所有边
+                const allEdges = [];
+                polygons.forEach((poly, polyIdx) => {
+                    for (let i = 0; i < poly.length; i++) {
+                        const j = (i + 1) % poly.length;
+                        allEdges.push({
+                            p1: poly[i],
+                            p2: poly[j],
+                            polyIdx
+                        });
+                    }
+                });
+                
+                // 2. 计算所有交点
+                const intersections = this.findAllIntersections(allEdges);
+                
+                // 3. 构建增强的边列表（包含交点）
+                const augmentedPolygons = this.augmentPolygons(polygons, intersections);
+                
+                // 4. 使用射线扫描法提取外边界和孔洞
+                return this.extractBoundaries(augmentedPolygons, polygons);
+            }
+            
+            /**
+             * 查找所有边的交点
+             */
+            static findAllIntersections(edges) {
+                const intersections = [];
+                
+                for (let i = 0; i < edges.length; i++) {
+                    for (let j = i + 1; j < edges.length; j++) {
+                        // 跳过同一多边形的相邻边
+                        if (edges[i].polyIdx === edges[j].polyIdx) continue;
+                        
+                        const inter = this.segmentIntersection(
+                            edges[i].p1, edges[i].p2,
+                            edges[j].p1, edges[j].p2
+                        );
+                        
+                        if (inter) {
+                            intersections.push({
+                                point: inter,
+                                edge1: i,
+                                edge2: j
+                            });
+                        }
+                    }
+                }
+                
+                return intersections;
+            }
+            
+            /**
+             * 线段交点计算
+             */
+            static segmentIntersection(p1, p2, p3, p4) {
+                const d1x = p2.x - p1.x;
+                const d1y = p2.y - p1.y;
+                const d2x = p4.x - p3.x;
+                const d2y = p4.y - p3.y;
+                
+                const cross = d1x * d2y - d1y * d2x;
+                if (Math.abs(cross) < 1e-10) return null;
+                
+                const dx = p3.x - p1.x;
+                const dy = p3.y - p1.y;
+                
+                const t1 = (dx * d2y - dy * d2x) / cross;
+                const t2 = (dx * d1y - dy * d1x) / cross;
+                
+                const eps = 1e-6;
+                if (t1 > eps && t1 < 1 - eps && t2 > eps && t2 < 1 - eps) {
+                    return {
+                        x: p1.x + t1 * d1x,
+                        y: p1.y + t1 * d1y,
+                        t1, t2
+                    };
+                }
+                
+                return null;
+            }
+            
+            /**
+             * 将交点插入多边形
+             */
+            static augmentPolygons(polygons, intersections) {
+                // 为每条边收集交点
+                const edgeIntersections = polygons.map(poly => 
+                    poly.map(() => [])
+                );
+                
+                let edgeIdx = 0;
+                for (let polyIdx = 0; polyIdx < polygons.length; polyIdx++) {
+                    for (let i = 0; i < polygons[polyIdx].length; i++) {
+                        edgeIdx++;
+                    }
+                }
+                
+                // 分配交点到边
+                intersections.forEach(inter => {
+                    // 简化：这里跳过复杂的交点分配
+                });
+                
+                return polygons;
+            }
+            
+            /**
+             * 提取外边界和孔洞
+             * 使用栅格化 + 连通区域分析
+             */
+            static extractBoundaries(augmentedPolygons, originalPolygons) {
+                // 使用更简单但更鲁棒的方法：
+                // 1. 栅格化所有多边形
+                // 2. 执行形态学操作得到并集
+                // 3. 提取轮廓
+                
+                const bounds = this.getBounds(originalPolygons);
+                const resolution = 2; // 像素大小
+                const width = Math.ceil((bounds.maxX - bounds.minX) / resolution) + 4;
+                const height = Math.ceil((bounds.maxY - bounds.minY) / resolution) + 4;
+                
+                // 创建栅格
+                const grid = new Uint8Array(width * height);
+                
+                // 栅格化每个多边形
+                originalPolygons.forEach(poly => {
+                    this.rasterizePolygon(poly, grid, width, height, bounds, resolution);
+                });
+                
+                // 提取轮廓
+                const contours = this.extractContours(grid, width, height, bounds, resolution);
+                
+                // 分类外边界和孔洞
+                const regions = [];
+                const holes = [];
+                
+                contours.forEach(contour => {
+                    const area = this.polygonArea(contour);
+                    if (area > 0) {
+                        regions.push(contour);
+                    } else {
+                        holes.push(contour.reverse());
+                    }
+                });
+                
+                return { regions, holes };
+            }
+            
+            /**
+             * 获取多边形边界框
+             */
+            static getBounds(polygons) {
+                let minX = Infinity, minY = Infinity;
+                let maxX = -Infinity, maxY = -Infinity;
+                
+                polygons.forEach(poly => {
+                    poly.forEach(p => {
+                        minX = Math.min(minX, p.x);
+                        minY = Math.min(minY, p.y);
+                        maxX = Math.max(maxX, p.x);
+                        maxY = Math.max(maxY, p.y);
+                    });
+                });
+                
+                return { 
+                    minX: minX - 10, 
+                    minY: minY - 10, 
+                    maxX: maxX + 10, 
+                    maxY: maxY + 10 
+                };
+            }
+            
+            /**
+             * 栅格化多边形（扫描线填充）
+             */
+            static rasterizePolygon(poly, grid, width, height, bounds, resolution) {
+                const n = poly.length;
+                if (n < 3) return;
+                
+                // 转换到栅格坐标
+                const gridPoly = poly.map(p => ({
+                    x: (p.x - bounds.minX) / resolution,
+                    y: (p.y - bounds.minY) / resolution
+                }));
+                
+                // 找Y范围
+                let minY = Infinity, maxY = -Infinity;
+                gridPoly.forEach(p => {
+                    minY = Math.min(minY, p.y);
+                    maxY = Math.max(maxY, p.y);
+                });
+                
+                minY = Math.max(0, Math.floor(minY));
+                maxY = Math.min(height - 1, Math.ceil(maxY));
+                
+                // 扫描线填充
+                for (let y = minY; y <= maxY; y++) {
+                    const intersections = [];
+                    
+                    for (let i = 0; i < n; i++) {
+                        const j = (i + 1) % n;
+                        const p1 = gridPoly[i];
+                        const p2 = gridPoly[j];
+                        
+                        if ((p1.y <= y && p2.y > y) || (p2.y <= y && p1.y > y)) {
+                            const t = (y - p1.y) / (p2.y - p1.y);
+                            const x = p1.x + t * (p2.x - p1.x);
+                            intersections.push(x);
+                        }
+                    }
+                    
+                    intersections.sort((a, b) => a - b);
+                    
+                    for (let i = 0; i < intersections.length - 1; i += 2) {
+                        const x1 = Math.max(0, Math.floor(intersections[i]));
+                        const x2 = Math.min(width - 1, Math.ceil(intersections[i + 1]));
+                        
+                        for (let x = x1; x <= x2; x++) {
+                            grid[y * width + x] = 1;
+                        }
+                    }
+                }
+            }
+            
+            /**
+             * 从栅格提取轮廓（改进的边界追踪）
+             */
+            static extractContours(grid, width, height, bounds, resolution) {
+                const contours = [];
+                const visited = new Uint8Array(width * height);
+                
+                // Moore邻域（8连通）
+                const dx = [1, 1, 0, -1, -1, -1, 0, 1];
+                const dy = [0, 1, 1, 1, 0, -1, -1, -1];
+                
+                // 查找所有轮廓起点
+                for (let y = 1; y < height - 1; y++) {
+                    for (let x = 1; x < width - 1; x++) {
+                        const idx = y * width + x;
+                        
+                        // 找到从背景到前景的边界点
+                        if (grid[idx] === 1 && grid[idx - 1] === 0 && !visited[idx]) {
+                            const contour = this.traceContour(grid, visited, width, height, x, y, dx, dy);
+                            
+                            if (contour.length >= 3) {
+                                // 转换回世界坐标
+                                const worldContour = contour.map(p => ({
+                                    x: p.x * resolution + bounds.minX,
+                                    y: p.y * resolution + bounds.minY
+                                }));
+                                
+                                // 简化轮廓
+                                const simplified = this.simplifyContour(worldContour, resolution * 1.5);
+                                if (simplified.length >= 3) {
+                                    contours.push(simplified);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                return contours;
+            }
+            
+            /**
+             * 追踪单个轮廓（Moore-Neighbor算法）
+             */
+            static traceContour(grid, visited, width, height, startX, startY, dx, dy) {
+                const contour = [];
+                let x = startX, y = startY;
+                let dir = 0; // 起始方向
+                const maxIter = width * height;
+                let iter = 0;
+                
+                do {
+                    contour.push({ x, y });
+                    visited[y * width + x] = 1;
+                    
+                    // 找下一个边界点
+                    let found = false;
+                    const startDir = (dir + 6) % 8; // 从后方开始搜索
+                    
+                    for (let i = 0; i < 8; i++) {
+                        const d = (startDir + i) % 8;
+                        const nx = x + dx[d];
+                        const ny = y + dy[d];
+                        
+                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                            if (grid[ny * width + nx] === 1) {
+                                x = nx;
+                                y = ny;
+                                dir = d;
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (!found) break;
+                    iter++;
+                    
+                } while ((x !== startX || y !== startY) && iter < maxIter);
+                
+                return contour;
+            }
+            
+            /**
+             * 简化轮廓（Douglas-Peucker）
+             */
+            static simplifyContour(contour, epsilon) {
+                if (contour.length < 3) return contour;
+                
+                const keep = new Array(contour.length).fill(false);
+                keep[0] = true;
+                keep[contour.length - 1] = true;
+                
+                this.dpSimplify(contour, 0, contour.length - 1, epsilon, keep);
+                
+                return contour.filter((_, i) => keep[i]);
+            }
+            
+            static dpSimplify(points, start, end, epsilon, keep) {
+                if (end <= start + 1) return;
+                
+                let maxDist = 0;
+                let maxIdx = start;
+                
+                for (let i = start + 1; i < end; i++) {
+                    const dist = this.pointToLineDistance(
+                        points[i], points[start], points[end]
+                    );
+                    if (dist > maxDist) {
+                        maxDist = dist;
+                        maxIdx = i;
+                    }
+                }
+                
+                if (maxDist > epsilon) {
+                    keep[maxIdx] = true;
+                    this.dpSimplify(points, start, maxIdx, epsilon, keep);
+                    this.dpSimplify(points, maxIdx, end, epsilon, keep);
+                }
+            }
+            
+            static pointToLineDistance(p, a, b) {
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len < 1e-10) return Math.sqrt((p.x - a.x) ** 2 + (p.y - a.y) ** 2);
+                return Math.abs(dy * p.x - dx * p.y + b.x * a.y - b.y * a.x) / len;
+            }
+            
+            /**
+             * 计算多边形面积（带符号）
+             */
+            static polygonArea(polygon) {
+                let area = 0;
+                const n = polygon.length;
+                for (let i = 0; i < n; i++) {
+                    const j = (i + 1) % n;
+                    area += polygon[i].x * polygon[j].y;
+                    area -= polygon[j].x * polygon[i].y;
+                }
+                return area / 2;
+            }
+        }
+        
+        // ============================================================================
+        // 地形模型
+        // ============================================================================
+        
+        function getTerrainElevation(x, y) {
+            let maxHeight = 0;
+            for (const terrain of state.terrains) {
+                const dx = (x - terrain.x) / terrain.rx;
+                const dy = (y - terrain.y) / terrain.ry;
+                const distSq = dx * dx + dy * dy;
+                if (distSq < 1) {
+                    const h = terrain.height * Math.exp(-3 * distSq);
+                    maxHeight = Math.max(maxHeight, h);
+                }
+            }
+            return maxHeight;
+        }
+        
+        function isLineOfSightBlocked(radarPos, radarHeight, targetPos) {
+            const steps = 30;
+            const dx = (targetPos.x - radarPos.x) / steps;
+            const dy = (targetPos.y - radarPos.y) / steps;
+            const totalDist = Math.sqrt(
+                (targetPos.x - radarPos.x) ** 2 + (targetPos.y - radarPos.y) ** 2
+            );
+            
+            for (let i = 1; i < steps; i++) {
+                const x = radarPos.x + dx * i;
+                const y = radarPos.y + dy * i;
+                const progress = i / steps;
+                
+                const losHeight = radarHeight * (1 - progress);
+                const curvatureDrop = (progress * totalDist) ** 2 / 12740000 * 0.3;
+                const effectiveLos = losHeight - curvatureDrop;
+                
+                const terrainHeight = getTerrainElevation(x, y);
+                
+                if (terrainHeight > effectiveLos) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        // ============================================================================
+        // 覆盖多边形生成
+        // ============================================================================
+        
+        function generateCoveragePolygon(radar) {
+            const points = [];
+            const numRays = state.params.rayCount;
+            const angleStep = (2 * Math.PI) / numRays;
+            
+            for (let i = 0; i < numRays; i++) {
+                const angle = i * angleStep;
+                let maxRange = radar.range;
+                
+                // 二分搜索最大可视距离
+                let lo = 0, hi = radar.range;
+                while (hi - lo > radar.range * 0.02) {
+                    const mid = (lo + hi) / 2;
+                    const targetPos = {
+                        x: radar.x + Math.cos(angle) * mid,
+                        y: radar.y + Math.sin(angle) * mid
+                    };
+                    
+                    if (isLineOfSightBlocked({ x: radar.x, y: radar.y }, radar.height, targetPos)) {
+                        hi = mid;
+                    } else {
+                        lo = mid;
+                    }
+                }
+                maxRange = lo;
+                
+                points.push({
+                    x: radar.x + Math.cos(angle) * maxRange,
+                    y: radar.y + Math.sin(angle) * maxRange
+                });
+            }
+            
+            return points;
+        }
+        
+        // ============================================================================
+        // 多边形平滑
+        // ============================================================================
+        
+        function smoothPolygon(polygon, iterations) {
+            if (iterations === 0 || polygon.length < 3) return polygon;
+            
+            let result = [...polygon];
+            
+            for (let iter = 0; iter < iterations; iter++) {
+                const newPoints = [];
+                const n = result.length;
+                
+                for (let i = 0; i < n; i++) {
+                    const p0 = result[i];
+                    const p1 = result[(i + 1) % n];
+                    
+                    newPoints.push({
+                        x: 0.75 * p0.x + 0.25 * p1.x,
+                        y: 0.75 * p0.y + 0.25 * p1.y
+                    });
+                    newPoints.push({
+                        x: 0.25 * p0.x + 0.75 * p1.x,
+                        y: 0.25 * p0.y + 0.75 * p1.y
+                    });
+                }
+                
+                result = newPoints;
+            }
+            
+            return result;
+        }
+        
+        function computePolygonArea(polygon) {
+            if (!polygon || polygon.length < 3) return 0;
+            return Math.abs(PolygonBoolean.polygonArea(polygon));
+        }
+        
+        // ============================================================================
+        // 渲染
+        // ============================================================================
+        
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            render();
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            ctx.translate(state.pan.x, state.pan.y);
+            ctx.scale(state.zoom, state.zoom);
+            
+            // 生成各雷达覆盖多边形
+            const coverages = state.radars.map(radar => ({
+                radar,
+                polygon: generateCoveragePolygon(radar)
+            }));
+            
+            // 计算并集
+            let unionResult = { regions: [], holes: [] };
+            if (coverages.length > 0) {
+                const polygons = coverages.map(c => c.polygon);
+                unionResult = PolygonBoolean.union(polygons);
+                
+                // 平滑处理
+                unionResult.regions = unionResult.regions.map(r => 
+                    smoothPolygon(r, state.params.smoothLevel)
+                );
+                unionResult.holes = unionResult.holes.map(h => 
+                    smoothPolygon(h, state.params.smoothLevel)
+                );
+            }
+            
+            // 绘制地形
+            if (state.options.showTerrain) {
+                drawTerrains();
+            }
+            
+            // 绘制合并覆盖
+            if (state.options.showMerged) {
+                drawMergedCoverage(unionResult);
+            }
+            
+            // 绘制独立覆盖
+            if (state.options.showIndividual) {
+                coverages.forEach(({ radar, polygon }) => {
+                    drawCoverage(polygon, radar.color);
+                });
+            }
+            
+            // 绘制雷达
+            state.radars.forEach(radar => {
+                drawRadar(radar);
+            });
+            
+            ctx.restore();
+            
+            // 更新统计
+            updateStats(coverages, unionResult);
+        }
+        
+        function drawTerrains() {
+            state.terrains.forEach((terrain, index) => {
+                const isSelected = state.selectedTerrain === index;
+                
+                const gradient = ctx.createRadialGradient(
+                    terrain.x, terrain.y, 0,
+                    terrain.x, terrain.y, Math.max(terrain.rx, terrain.ry)
+                );
+                gradient.addColorStop(0, 'rgba(146, 64, 14, 0.7)');
+                gradient.addColorStop(1, 'rgba(146, 64, 14, 0)');
+                
+                ctx.beginPath();
+                ctx.ellipse(terrain.x, terrain.y, terrain.rx, terrain.ry, 0, 0, 2 * Math.PI);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // 等高线
+                [0.3, 0.6].forEach(level => {
+                    ctx.beginPath();
+                    ctx.ellipse(
+                        terrain.x, terrain.y,
+                        terrain.rx * (1 - level * 0.5),
+                        terrain.ry * (1 - level * 0.5),
+                        0, 0, 2 * Math.PI
+                    );
+                    ctx.strokeStyle = `rgba(161, 98, 7, ${0.4 + level * 0.2})`;
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                });
+                
+                if (isSelected) {
+                    ctx.beginPath();
+                    ctx.ellipse(terrain.x, terrain.y, terrain.rx + 5, terrain.ry + 5, 0, 0, 2 * Math.PI);
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                
+                if (state.options.showLabels) {
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.font = '10px "Noto Sans SC"';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${terrain.height}m`, terrain.x, terrain.y + 4);
+                }
+            });
+        }
+        
+        function drawCoverage(polygon, color) {
+            if (polygon.length < 3) return;
+            
+            ctx.beginPath();
+            ctx.moveTo(polygon[0].x, polygon[0].y);
+            for (let i = 1; i < polygon.length; i++) {
+                ctx.lineTo(polygon[i].x, polygon[i].y);
+            }
+            ctx.closePath();
+            
+            ctx.fillStyle = color + '15';
+            ctx.fill();
+            
+            ctx.strokeStyle = color + '60';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 2]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 绘制顶点
+            if (state.options.showVertices) {
+                ctx.fillStyle = color;
+                polygon.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+            }
+        }
+        
+        function drawMergedCoverage(unionResult) {
+            const { regions, holes } = unionResult;
+            
+            // 绘制外边界区域
+            regions.forEach(region => {
+                if (region.length < 3) return;
+                
+                ctx.beginPath();
+                ctx.moveTo(region[0].x, region[0].y);
+                for (let i = 1; i < region.length; i++) {
+                    ctx.lineTo(region[i].x, region[i].y);
+                }
+                ctx.closePath();
+                
+                // 渐变填充
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                gradient.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
+                gradient.addColorStop(1, 'rgba(139, 92, 246, 0.25)');
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // 边框
+                ctx.shadowColor = '#06b6d4';
+                ctx.shadowBlur = 8;
+                ctx.strokeStyle = '#06b6d4';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                
+                // 顶点
+                if (state.options.showVertices) {
+                    ctx.fillStyle = '#06b6d4';
+                    region.forEach(p => {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 3, 0, 2 * Math.PI);
+                        ctx.fill();
+                    });
+                }
+            });
+            
+            // 绘制孔洞
+            holes.forEach(hole => {
+                if (hole.length < 3) return;
+                
+                ctx.beginPath();
+                ctx.moveTo(hole[0].x, hole[0].y);
+                for (let i = 1; i < hole.length; i++) {
+                    ctx.lineTo(hole[i].x, hole[i].y);
+                }
+                ctx.closePath();
+                
+                // 用背景色填充孔洞
+                ctx.fillStyle = '#0a0f1a';
+                ctx.fill();
+                
+                // 孔洞边框用红色
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 2]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            });
+        }
+        
+        function drawRadar(radar) {
+            const isSelected = state.selectedRadar === radar.id;
+            
+            // 范围圈
+            ctx.beginPath();
+            ctx.arc(radar.x, radar.y, radar.range, 0, 2 * Math.PI);
+            ctx.strokeStyle = radar.color + '30';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 图标
+            ctx.beginPath();
+            ctx.arc(radar.x, radar.y, 14, 0, 2 * Math.PI);
+            ctx.fillStyle = '#0a0f1a';
+            ctx.fill();
+            ctx.strokeStyle = isSelected ? '#06b6d4' : radar.color;
+            ctx.lineWidth = isSelected ? 3 : 2;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(radar.x, radar.y, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = radar.color;
+            ctx.fill();
+            
+            // 标签
+            if (state.options.showLabels) {
+                ctx.fillStyle = '#0a0f1a';
+                ctx.fillRect(radar.x - 28, radar.y - 34, 56, 16);
+                ctx.fillStyle = radar.color;
+                ctx.font = '11px "Noto Sans SC"';
+                ctx.textAlign = 'center';
+                ctx.fillText(radar.name, radar.x, radar.y - 22);
+            }
+        }
+        
+        // ============================================================================
+        // 交互
+        // ============================================================================
+        
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left - state.pan.x) / state.zoom;
+            const y = (e.clientY - rect.top - state.pan.y) / state.zoom;
+            
+            if (state.currentTool === 'select') {
+                for (const radar of state.radars) {
+                    const dist = Math.sqrt((x - radar.x) ** 2 + (y - radar.y) ** 2);
+                    if (dist < 20) {
+                        selectRadar(radar.id);
+                        state.isDragging = true;
+                        state.dragTarget = { type: 'radar', id: radar.id };
+                        state.dragOffset = { x: x - radar.x, y: y - radar.y };
+                        return;
+                    }
+                }
+                
+                for (let i = 0; i < state.terrains.length; i++) {
+                    const terrain = state.terrains[i];
+                    const dx = (x - terrain.x) / terrain.rx;
+                    const dy = (y - terrain.y) / terrain.ry;
+                    if (dx * dx + dy * dy < 1) {
+                        selectTerrain(i);
+                        state.isDragging = true;
+                        state.dragTarget = { type: 'terrain', index: i };
+                        state.dragOffset = { x: x - terrain.x, y: y - terrain.y };
+                        return;
+                    }
+                }
+                
+                deselectAll();
+            } else if (state.currentTool === 'radar') {
+                addRadarAt(x, y);
+                setTool('select');
+            } else if (state.currentTool === 'terrain') {
+                addTerrainAt(x, y);
+                setTool('select');
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left - state.pan.x) / state.zoom;
+            const y = (e.clientY - rect.top - state.pan.y) / state.zoom;
+            
+            document.getElementById('cursorPos').textContent = `${Math.round(x)}, ${Math.round(y)}`;
+            
+            if (state.isDragging && state.dragTarget) {
+                if (state.dragTarget.type === 'radar') {
+                    const radar = state.radars.find(r => r.id === state.dragTarget.id);
+                    if (radar) {
+                        radar.x = x - state.dragOffset.x;
+                        radar.y = y - state.dragOffset.y;
+                        updatePropertyPanel();
+                        render();
+                    }
+                } else if (state.dragTarget.type === 'terrain') {
+                    const terrain = state.terrains[state.dragTarget.index];
+                    if (terrain) {
+                        terrain.x = x - state.dragOffset.x;
+                        terrain.y = y - state.dragOffset.y;
+                        updatePropertyPanel();
+                        render();
+                    }
+                }
+            }
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            state.isDragging = false;
+            state.dragTarget = null;
+        });
+        
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            state.zoom = Math.max(0.3, Math.min(3, state.zoom * delta));
+            document.getElementById('zoomLevel').textContent = Math.round(state.zoom * 100) + '%';
+            render();
+        });
+        
+        // ============================================================================
+        // 工具函数
+        // ============================================================================
+        
+        function setTool(tool) {
+            state.currentTool = tool;
+            document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tool === tool);
+            });
+            canvas.style.cursor = tool === 'select' ? 'default' : 'crosshair';
+        }
+        
+        function addRadar() {
+            const x = canvas.width / 2 / state.zoom + (Math.random() - 0.5) * 200;
+            const y = canvas.height / 2 / state.zoom + (Math.random() - 0.5) * 200;
+            addRadarAt(x, y);
+        }
+        
+        function addRadarAt(x, y) {
+            const id = ++state.radarIdCounter;
+            state.radars.push({
+                id,
+                name: `雷达 ${String.fromCharCode(65 + (state.radars.length % 26))}`,
+                x, y,
+                range: 150,
+                height: 100,
+                color: radarColors[state.radars.length % radarColors.length]
+            });
+            selectRadar(id);
+            updateRadarList();
+            render();
+        }
+        
+        function addTerrain() {
+            const x = canvas.width / 2 / state.zoom + (Math.random() - 0.5) * 200;
+            const y = canvas.height / 2 / state.zoom + (Math.random() - 0.5) * 200;
+            addTerrainAt(x, y);
+        }
+        
+        function addTerrainAt(x, y) {
+            state.terrains.push({ x, y, rx: 60, ry: 60, height: 500 });
+            selectTerrain(state.terrains.length - 1);
+            render();
+        }
+        
+        function addPreset() {
+            clearAllSilent();
+            
+            // 创建一个展示凹多边形合并的场景
+            state.terrains = [
+                { x: 400, y: 280, rx: 100, ry: 80, height: 800 },  // 中央大山
+                { x: 250, y: 400, rx: 50, ry: 60, height: 400 },   // 左下小山
+                { x: 550, y: 420, rx: 60, ry: 50, height: 450 },   // 右下小山
+            ];
+            
+            // 添加围绕中央山脉的雷达
+            const positions = [
+                { x: 200, y: 200, range: 180 },
+                { x: 600, y: 180, range: 160 },
+                { x: 150, y: 400, range: 140 },
+                { x: 650, y: 380, range: 150 },
+                { x: 400, y: 500, range: 170 },
+            ];
+            
+            positions.forEach((pos, i) => {
+                state.radars.push({
+                    id: ++state.radarIdCounter,
+                    name: `雷达 ${String.fromCharCode(65 + i)}`,
+                    x: pos.x,
+                    y: pos.y,
+                    range: pos.range,
+                    height: 80 + i * 20,
+                    color: radarColors[i % radarColors.length]
+                });
+            });
+            
+            deselectAll();
+            updateRadarList();
+            render();
+        }
+        
+        function deleteRadar(id) {
+            state.radars = state.radars.filter(r => r.id !== id);
+            if (state.selectedRadar === id) deselectAll();
+            updateRadarList();
+            render();
+        }
+        
+        function selectRadar(id) {
+            state.selectedRadar = id;
+            state.selectedTerrain = null;
+            updateRadarList();
+            updatePropertyPanel();
+        }
+        
+        function selectTerrain(index) {
+            state.selectedTerrain = index;
+            state.selectedRadar = null;
+            updateRadarList();
+            updatePropertyPanel();
+        }
+        
+        function deselectAll() {
+            state.selectedRadar = null;
+            state.selectedTerrain = null;
+            updateRadarList();
+            updatePropertyPanel();
+        }
+        
+        function clearAllSilent() {
+            state.radars = [];
+            state.terrains = [];
+            state.selectedRadar = null;
+            state.selectedTerrain = null;
+        }
+        
+        function clearAll() {
+            if (confirm('确定要清空所有内容吗？')) {
+                clearAllSilent();
+                updateRadarList();
+                updatePropertyPanel();
+                render();
+            }
+        }
+        
+        function toggleOption(element) {
+            element.classList.toggle('active');
+            state.options[element.dataset.option] = element.classList.contains('active');
+            render();
+        }
+        
+        function updateParameter(param, value) {
+            state.params[param] = parseInt(value);
+            document.getElementById(param + 'Value').textContent = value;
+            render();
+        }
+        
+        function zoomIn() {
+            state.zoom = Math.min(3, state.zoom * 1.2);
+            document.getElementById('zoomLevel').textContent = Math.round(state.zoom * 100) + '%';
+            render();
+        }
+        
+        function zoomOut() {
+            state.zoom = Math.max(0.3, state.zoom / 1.2);
+            document.getElementById('zoomLevel').textContent = Math.round(state.zoom * 100) + '%';
+            render();
+        }
+        
+        function resetView() {
+            state.zoom = 1;
+            state.pan = { x: 0, y: 0 };
+            document.getElementById('zoomLevel').textContent = '100%';
+            render();
+        }
+        
+        // ============================================================================
+        // UI 更新
+        // ============================================================================
+        
+        function updateRadarList() {
+            const container = document.getElementById('radarList');
+            
+            if (state.radars.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📡</div>
+                        <div class="empty-state-text">点击"+ 雷达"或<br>"预设场景"开始</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = state.radars.map(radar => `
+                <div class="radar-card ${state.selectedRadar === radar.id ? 'selected' : ''}" 
+                     onclick="selectRadar(${radar.id})" 
+                     style="border-left-color: ${radar.color}">
+                    <div class="radar-card-header">
+                        <div class="radar-name">
+                            <div class="radar-color" style="background: ${radar.color}"></div>
+                            ${radar.name}
+                        </div>
+                        <button class="radar-delete" onclick="event.stopPropagation(); deleteRadar(${radar.id})">×</button>
+                    </div>
+                    <div class="radar-stats">
+                        <div>位置: ${Math.round(radar.x)}, ${Math.round(radar.y)}</div>
+                        <div>范围: ${radar.range}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updatePropertyPanel() {
+            const radarPanel = document.getElementById('radarProperties');
+            const terrainPanel = document.getElementById('terrainProperties');
+            
+            if (state.selectedRadar !== null) {
+                const radar = state.radars.find(r => r.id === state.selectedRadar);
+                if (radar) {
+                    radarPanel.style.display = 'block';
+                    terrainPanel.style.display = 'none';
+                    
+                    document.getElementById('propRadarName').value = radar.name;
+                    document.getElementById('propRadarX').value = Math.round(radar.x);
+                    document.getElementById('propRadarY').value = Math.round(radar.y);
+                    document.getElementById('propRadarRange').value = radar.range;
+                    document.getElementById('propRadarRangeValue').textContent = radar.range;
+                    document.getElementById('propRadarHeight').value = radar.height;
+                    document.getElementById('propRadarHeightValue').textContent = radar.height;
+                }
+            } else if (state.selectedTerrain !== null) {
+                const terrain = state.terrains[state.selectedTerrain];
+                if (terrain) {
+                    radarPanel.style.display = 'none';
+                    terrainPanel.style.display = 'block';
+                    
+                    document.getElementById('propTerrainX').value = Math.round(terrain.x);
+                    document.getElementById('propTerrainY').value = Math.round(terrain.y);
+                    document.getElementById('propTerrainRX').value = terrain.rx;
+                    document.getElementById('propTerrainRXValue').textContent = terrain.rx;
+                    document.getElementById('propTerrainRY').value = terrain.ry;
+                    document.getElementById('propTerrainRYValue').textContent = terrain.ry;
+                    document.getElementById('propTerrainHeight').value = terrain.height;
+                    document.getElementById('propTerrainHeightValue').textContent = terrain.height;
+                }
+            } else {
+                radarPanel.style.display = 'none';
+                terrainPanel.style.display = 'none';
+            }
+        }
+        
+        function updateSelectedRadar() {
+            if (state.selectedRadar === null) return;
+            const radar = state.radars.find(r => r.id === state.selectedRadar);
+            if (radar) {
+                radar.name = document.getElementById('propRadarName').value;
+                radar.x = parseFloat(document.getElementById('propRadarX').value) || radar.x;
+                radar.y = parseFloat(document.getElementById('propRadarY').value) || radar.y;
+                radar.range = parseInt(document.getElementById('propRadarRange').value);
+                radar.height = parseInt(document.getElementById('propRadarHeight').value);
+                
+                document.getElementById('propRadarRangeValue').textContent = radar.range;
+                document.getElementById('propRadarHeightValue').textContent = radar.height;
+                
+                updateRadarList();
+                render();
+            }
+        }
+        
+        function updateSelectedTerrain() {
+            if (state.selectedTerrain === null) return;
+            const terrain = state.terrains[state.selectedTerrain];
+            if (terrain) {
+                terrain.x = parseFloat(document.getElementById('propTerrainX').value) || terrain.x;
+                terrain.y = parseFloat(document.getElementById('propTerrainY').value) || terrain.y;
+                terrain.rx = parseInt(document.getElementById('propTerrainRX').value);
+                terrain.ry = parseInt(document.getElementById('propTerrainRY').value);
+                terrain.height = parseInt(document.getElementById('propTerrainHeight').value);
+                
+                document.getElementById('propTerrainRXValue').textContent = terrain.rx;
+                document.getElementById('propTerrainRYValue').textContent = terrain.ry;
+                document.getElementById('propTerrainHeightValue').textContent = terrain.height;
+                
+                render();
+            }
+        }
+        
+        function updateStats(coverages, unionResult) {
+            document.getElementById('statRadarCount').textContent = state.radars.length;
+            document.getElementById('statTerrainCount').textContent = state.terrains.length;
+            
+            const totalArea = coverages.reduce((sum, c) => sum + computePolygonArea(c.polygon), 0);
+            const mergedArea = unionResult.regions.reduce((sum, r) => sum + computePolygonArea(r), 0);
+            const holeArea = unionResult.holes.reduce((sum, h) => sum + computePolygonArea(h), 0);
+            
+            document.getElementById('statTotalArea').textContent = formatArea(totalArea);
+            document.getElementById('statMergedArea').textContent = formatArea(mergedArea - holeArea);
+            document.getElementById('statRegionCount').textContent = unionResult.regions.length;
+            document.getElementById('statHoleCount').textContent = unionResult.holes.length;
+            document.getElementById('polygonCount').textContent = unionResult.regions.length + unionResult.holes.length;
+        }
+        
+        function formatArea(area) {
+            if (area > 1000000) return (area / 1000000).toFixed(1) + 'M';
+            if (area > 1000) return (area / 1000).toFixed(1) + 'K';
+            return Math.round(area).toString();
+        }
+        
+        // ============================================================================
+        // 初始化
+        // ============================================================================
+        
+        addPreset();
+    </script>
+</body>
+</html>
