@@ -229,8 +229,7 @@ console.log('孔洞数:', result.holes.length);
 
 ## 作者
 
-[Your Name]
+FlitSim
 
 ---
 
-如果这个项目对你有帮助，请给一个 ⭐ Star！
